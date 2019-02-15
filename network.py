@@ -1,8 +1,5 @@
 import pickle
 import math
-import pp
-import sys
-# import matplotlib.pyplot as plt
 
 class Network:
 	def __init__(self, path):
@@ -20,8 +17,6 @@ class Network:
 		self.size = len(self.nodes)
 
 	def dot(self, x, y):
-		assert(isinstance(x, list))
-		assert(isinstance(y, list))
 		s = 0
 		for a, b in zip(x, y):
 			s += a*b
@@ -121,23 +116,3 @@ class Network:
 				self.gradB[n+1][q] = self.biases[n+1][q] - self.dot(C, BG)
 		self.weights = [[w[:] for w in wg] for wg in self.gradW]			
 		self.biases = [bg[:] if bg else None for bg in self.gradB]
-
-
-num = 100
-if len(sys.argv) > 1:
-	num = int(sys.argv[1])
-n = Network('network')
-costs = []
-x = math.inf
-for i in range(num):
-# while x > 0.001:
-	x = n.run([i/n.nodes[0] for i in range(n.nodes[0])], [i/n.nodes[-1] for i in range(n.nodes[-1])])
-	costs.append(x)
-	print(f'{i} - {x:.15f}')
-	n.descend()
-# plt.plot(range(len(costs)), costs)
-# plt.ylim(bottom=0)
-# plt.savefig('figure.png')
-
-print()
-n.print_last()
