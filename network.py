@@ -26,7 +26,7 @@ class Network:
 
 	def print_last(self):
 		for a, y in zip(self.activations[-1], self.y):
-			print(a, y)
+			print(f'{a:.7f}', y)
 
 	def sigmoid(self, x, deriv):
 		if not deriv:
