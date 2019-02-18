@@ -1,26 +1,30 @@
 import pickle
 import math
+import numpy as np
 
 class Network:
 	def __init__(self, path):
+		self.path = path
 		with open(path, 'rb') as f:
 			self.nodes = pickle.load(f)
 			self.weights = pickle.load(f)
 			self.biases = pickle.load(f)
-		self.activations = [[0]*n for n in self.nodes]
-		self.z = [[0]*n for n in self.nodes]
-		self.sigmoid_derivs = [[None]*n for n in self.nodes]
-
-		self.gradW = [[[0 for q in p] for p in w] for w in self.weights]
-		self.gradB = [None] + [[0 for p in b] for b in self.biases[1:]]
+		self.activations = [np.empty((n,)) for n in self.nodes]
+		self.z = [np.empty((n,)) for n in self.nodes]
+		self.sigmoid_derivs = [np.empty((n,)) for n in self.nodes]
+		self.clear()
 
 		self.size = len(self.nodes)
 
-	def dot(self, x, y):
-		s = 0
-		for a, b in zip(x, y):
-			s += a*b
-		return s
+	def save(self):
+		with open(self.path, 'wb') as f:
+			pickle.dump(self.nodes, f)
+			pickle.dump(self.weights, f)
+			pickle.dump(self.biases, f)
+
+	def clear(self):
+		self.gradW = [np.zeros(w.shape) for w in self.weights]
+		self.gradB = [np.zeros(b.shape) for b in self.biases]
 
 	def print_last(self):
 		for a, y in zip(self.activations[-1], self.y):
@@ -44,10 +48,8 @@ class Network:
 
 		for l in range(1, self.size):
 			for i in range(self.nodes[l]):
-				z = 0
-				for j in range(self.nodes[l-1]):
-					z += self.activations[l-1][j]*self.weights[l-1][j][i]
-				self.z[l][i] = z + self.biases[l][i]
+				z = np.dot(self.activations[l-1], self.weights[l-1][:,i])
+				self.z[l][i] = z + self.biases[l-1][i]
 				self.activations[l][i] = self.sigmoid(self.z[l][i], False)
 				self.sigmoid_derivs[l][i] = self.sigmoid(self.z[l][i], True)
 		cost = 0
@@ -61,58 +63,41 @@ class Network:
 			C[i] = 2*(self.activations[-1][i] - self.y[i])
 		return C
 		
-	def gradAW(self, A_layer, W_layer, p, q):
-		if A_layer == W_layer + 1:
-			g = [0]*self.nodes[A_layer]
-			g[q] = self.sigmoid_derivs[A_layer][q] * self.activations[W_layer][p]
+	def gradAWB(self, A_layer, WB_layer, p, q, t):
+		if A_layer == WB_layer + 1:
+			g = np.zeros(self.nodes[A_layer])
+			g[q] = self.sigmoid_derivs[A_layer][q]
+			if t == 'w':
+				g[q] *= self.activations[WB_layer][p]
 			return g
-		elif A_layer == W_layer + 2:
-			g = [None]*self.nodes[A_layer]
-			w = self.sigmoid_derivs[A_layer-1][q] * self.activations[W_layer][p]
-			for i in range(self.nodes[A_layer]):
-				a = self.sigmoid_derivs[A_layer][i]*self.weights[A_layer-1][q][i]
-				g[i] = a*w
-			return g
+		elif A_layer == WB_layer + 2:
+			wb = self.sigmoid_derivs[A_layer-1][q]
+			if t == 'w':
+				wb *= self.activations[WB_layer][p]
+			return wb*np.multiply(self.sigmoid_derivs[A_layer], self.weights[A_layer-1][q])
 		else:
-			g = [0]*self.nodes[A_layer]
-			W = self.gradAW(A_layer-1, W_layer, p, q)
-			for i in range(self.nodes[A_layer]):
-				sig = self.sigmoid_derivs[A_layer][i]
-				for j in range(self.nodes[A_layer-1]):
-					g[i] += W[j]*sig*self.weights[A_layer-1][j][i]
-			return g
+			WB = self.gradAWB(A_layer-1, WB_layer, p, q, t)
+			sig = self.sigmoid_derivs[A_layer]
+			dot = np.dot(WB, self.weights[A_layer-1])
+			return sig*dot
 
-	def gradAB(self, A_layer, B_layer, p):
-		if B_layer == 0: raise Exception("there are no biases on level 0")
-		if A_layer == B_layer:
-			g = [0]*self.nodes[A_layer]
-			g[p] = self.sigmoid_derivs[A_layer][p]
-			return g
-		elif A_layer == B_layer + 1:
-			g = [None]*self.nodes[A_layer]
-			b = self.sigmoid_derivs[A_layer-1][p]
-			for i in range(self.nodes[A_layer]):
-				a = self.sigmoid_derivs[A_layer][i]*self.weights[A_layer-1][p][i]
-				g[i] = a*b
-			return g
-		else:
-			g = [0]*self.nodes[A_layer]
-			B = self.gradAB(A_layer-1, B_layer, p)
-			for i in range(self.nodes[A_layer]):
-				sig = self.sigmoid_derivs[A_layer][i]
-				for j in range(self.nodes[A_layer-1]):
-					g[i] += B[j]*sig*self.weights[A_layer-1][j][i]
-			return g
-
-	def descend(self):
+	def single_descent(self):
 		C = self.gradCA()
 		L = len(self.nodes) - 1
 		for n in range(L):
 			for q in range(self.nodes[n+1]):
 				for p in range(self.nodes[n]):
-					WG = self.gradAW(L, n, p, q)
-					self.gradW[n][p][q] = self.weights[n][p][q] - self.dot(C, WG)
-				BG = self.gradAB(L, n+1, q)
-				self.gradB[n+1][q] = self.biases[n+1][q] - self.dot(C, BG)
-		self.weights = [[w[:] for w in wg] for wg in self.gradW]			
-		self.biases = [bg[:] if bg else None for bg in self.gradB]
+					# WG = self.gradAW(L, n, p, q)
+					WG = self.gradAWB(L, n, p, q, 'w')
+					self.gradW[n][p][q] += np.dot(C, WG)
+				# BG = self.gradAB(L, n, q)
+				BG = self.gradAWB(L, n, None, q, 'b')
+				self.gradB[n][q] += np.dot(C, BG)
+
+	def descend_batch(self, size):
+		C = self.gradCA()
+		L = len(self.nodes) - 1
+		for n in range(L):
+			self.weights[n] -= self.gradW[n]/size
+			self.biases[n] -= self.gradB[n]/size
+		self.clear()
