@@ -5,16 +5,19 @@ import numpy as np
 from network import Network
 np.set_printoptions(suppress=True)
 
-n = Network('network')
 parser = argparse.ArgumentParser()
+parser.add_argument('--path', required=True)
 parser.add_argument('-bs', '--batch_size', required=True)
 parser.add_argument('-nb', '--num_batches', required=True)
 parser.add_argument('-e', '--epochs', required=True)
 args = parser.parse_args()
 
+path = args.path
 batch_size = int(args.batch_size)
 num_batches = int(args.num_batches)
 epochs = int(args.epochs)
+
+n = Network(path)
 
 images = [None]*batch_size*num_batches
 labels = [None]*batch_size*num_batches

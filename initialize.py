@@ -9,7 +9,7 @@ lim = 10
 activations = [np.zeros((n,)) for n in nodes]
 biases = [lim*(np.random.rand(n)*2 - 1) for n in nodes[1:]]
 weights = [lim*(np.random.rand(n, nodes[i+1])*2 - 1) for i, n in enumerate(nodes[:-1])]
-with open('network', 'wb') as f:
+with open('dummy', 'wb') as f:
 	pickle.dump(nodes, f)
 	pickle.dump(weights, f)
 	pickle.dump(biases, f)

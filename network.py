@@ -71,13 +71,13 @@ class Network:
 		C = 2*(self.activations[-1] - self.y)
 		L = len(self.nodes) - 1
 		for n in range(L):
+			WG = np.empty((self.nodes[n], self.nodes[n+1], self.nodes[-1]))
 			BG = np.empty((self.nodes[n+1], self.nodes[-1]))
 			for q in range(self.nodes[n+1]):
-				WG = np.empty((self.nodes[n], self.nodes[-1]))
 				for p in range(self.nodes[n]):
-					WG[p] = self.gradAWB(L, n, p, q, 'w')
-				self.gradW[n][:,q] += np.dot(WG, C)
+					WG[p][q] = self.gradAWB(L, n, p, q, 'w')
 				BG[q] = self.gradAWB(L, n, None, q, 'b')
+			self.gradW[n] += np.dot(WG, C)
 			self.gradB[n] += np.dot(BG, C)
 
 	def descend_batch(self, size):
