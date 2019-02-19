@@ -50,20 +50,20 @@ class Network:
 			cost += (a-y)**2
 		return cost
 		
-	def gradAWB(self, A_layer, WB_layer, p, q, t):
+	def gradAWB(self, A_layer, WB_layer, q, t):
 		if A_layer == WB_layer + 1:
 			g = np.zeros(self.nodes[A_layer])
 			g[q] = self.sigmoid_derivs[A_layer][q]
-			if t == 'w':
-				g[q] *= self.activations[WB_layer][p]
-			return g
+			if t == 'b':
+				return g
+			return (np.einsum('i,j->ij', self.activations[WB_layer], g))
 		elif A_layer == WB_layer + 2:
-			wb = self.sigmoid_derivs[A_layer-1][q]
-			if t == 'w':
-				wb *= self.activations[WB_layer][p]
-			return wb*self.sigmoid_derivs[A_layer]*self.weights[A_layer-1][q]
+			wb = self.sigmoid_derivs[A_layer-1][q]*self.sigmoid_derivs[A_layer]*self.weights[A_layer-1][q]
+			if t == 'b':
+				return wb
+			return np.einsum('i,j->ij', self.activations[WB_layer], wb)
 		else:
-			WB = self.gradAWB(A_layer-1, WB_layer, p, q, t)
+			WB = self.gradAWB(A_layer-1, WB_layer, q, t)
 			sig = self.sigmoid_derivs[A_layer]
 			return sig*np.dot(WB, self.weights[A_layer-1])
 
@@ -74,9 +74,8 @@ class Network:
 			WG = np.empty((self.nodes[n], self.nodes[n+1], self.nodes[-1]))
 			BG = np.empty((self.nodes[n+1], self.nodes[-1]))
 			for q in range(self.nodes[n+1]):
-				for p in range(self.nodes[n]):
-					WG[p][q] = self.gradAWB(L, n, p, q, 'w')
-				BG[q] = self.gradAWB(L, n, None, q, 'b')
+				WG[:,q] = self.gradAWB(L, n, q, 'w')
+				BG[q] = self.gradAWB(L, n, q, 'b')
 			self.gradW[n] += np.dot(WG, C)
 			self.gradB[n] += np.dot(BG, C)
 
