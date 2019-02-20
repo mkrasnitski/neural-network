@@ -35,7 +35,7 @@ for e in range(epochs):
 			cost = 0
 			for b in range(batch_size):
 				index = batch*batch_size + b
-				if b % 10 == 0:
+				if b % 100 == 0:
 					print(f'{index:05d}', end = ' ', flush=True)
 				x = n.run(images[index], labels[index])
 				cost += x

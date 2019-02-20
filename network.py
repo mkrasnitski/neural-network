@@ -49,23 +49,23 @@ class Network:
 		for a, y in zip(self.activations[-1], self.y):
 			cost += (a-y)**2
 		return cost
-		
+
 	def gradAWB(self, A_layer, WB_layer, q, t):
 		if A_layer == WB_layer + 1:
 			g = np.zeros(self.nodes[A_layer])
 			g[q] = self.sigmoid_derivs[A_layer][q]
 			if t == 'b':
 				return g
-			return (np.einsum('i,j->ij', self.activations[WB_layer], g))
+			return np.outer(self.activations[WB_layer], g)
 		elif A_layer == WB_layer + 2:
-			wb = self.sigmoid_derivs[A_layer-1][q]*self.sigmoid_derivs[A_layer]*self.weights[A_layer-1][q]
+			wb = self.sigmoid_derivs[A_layer-1][q]*self.weights[A_layer-1][q]*self.sigmoid_derivs[A_layer]
 			if t == 'b':
 				return wb
-			return np.einsum('i,j->ij', self.activations[WB_layer], wb)
+			return np.outer(self.activations[WB_layer], wb)
 		else:
 			WB = self.gradAWB(A_layer-1, WB_layer, q, t)
 			sig = self.sigmoid_derivs[A_layer]
-			return sig*np.dot(WB, self.weights[A_layer-1])
+			return sig*np.matmul(WB, self.weights[A_layer-1])
 
 	def single_descent(self):
 		C = 2*(self.activations[-1] - self.y)
