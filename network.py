@@ -1,5 +1,4 @@
 import pickle
-import math
 import numpy as np
 
 class Network:
@@ -71,12 +70,12 @@ class Network:
 		C = 2*(self.activations[-1] - self.y)
 		L = len(self.nodes) - 1
 		for n in range(L):
-			WG = np.empty((self.nodes[n], self.nodes[n+1], self.nodes[-1]))
+			WG = np.empty((self.nodes[n+1], self.nodes[n], self.nodes[-1]))
 			BG = np.empty((self.nodes[n+1], self.nodes[-1]))
 			for q in range(self.nodes[n+1]):
-				WG[:,q] = self.gradAWB(L, n, q, 'w')
+				WG[q] = self.gradAWB(L, n, q, 'w')
 				BG[q] = self.gradAWB(L, n, q, 'b')
-			self.gradW[n] += np.dot(WG, C)
+			self.gradW[n] += np.dot(np.transpose(WG, (1, 0, 2)), C)
 			self.gradB[n] += np.dot(BG, C)
 
 	def descend_batch(self, size):

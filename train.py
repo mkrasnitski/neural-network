@@ -1,9 +1,16 @@
 import argparse
-import math
 import pickle
 import numpy as np
 from network import Network
 np.set_printoptions(suppress=True)
+
+def read_file(path):
+	image = label = None
+	with open(path, 'rb') as f:
+		image = pickle.load(f)
+		label = pickle.load(f)
+		labels = [1 if i == label else 0 for i in range(10)]
+	return image, labels
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--path', required=True)
@@ -22,10 +29,7 @@ n = Network(path)
 images = [None]*batch_size*num_batches
 labels = [None]*batch_size*num_batches
 for i in range(batch_size*num_batches):
-	with open(f'image_data/data/{i:05d}', 'rb') as f:
-		images[i] = pickle.load(f)
-		label = pickle.load(f)
-		labels[i] = [1 if j == label else 0 for j in range(10)]
+	images[i], labels[i] = read_file(f'image_data/data/{i:05d}')
 
 for e in range(epochs):
 	print(f'Epoch {e}')
