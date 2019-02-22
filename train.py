@@ -20,8 +20,8 @@ def read_file(path):
 
 def single_example(net, index, image, label):
 	c = net.run(image, label)
-	if index % 100 == 0:
-		print(f'{index:05d}', end=' ', flush=True)
+	# if index % 100 == 0:
+		# print(f'{index:05d}', end=' ', flush=True)
 	return c, net.single_descent()
 
 def worker(q, l):
@@ -40,12 +40,14 @@ parser.add_argument('--path', required=True)
 parser.add_argument('-bs', '--batch_size', required=True)
 parser.add_argument('-nb', '--num_batches', required=True)
 parser.add_argument('-e', '--epochs', required=True)
+parser.add_argument('-p', '--processes', required=True)
 args = parser.parse_args()
 
 path = args.path
 batch_size = int(args.batch_size)
 num_batches = int(args.num_batches)
 epochs = int(args.epochs)
+num_processes = int(args.processes)
 
 n = Network(path)
 
@@ -55,24 +57,27 @@ def main():
 	for i in range(batch_size*num_batches):
 		images[i], labels[i] = read_file(f'image_data/data/{i:05d}')
 
-	num_processes = 8
 	manager = SyncManager()
 	manager.start(init_worker)
 	lst = manager.list([None]*batch_size)
-	write_q = JoinableQueue(batch_size)
-	pool = Pool(num_processes, worker, (write_q, lst))
+	queue = JoinableQueue(batch_size)
+	pool = Pool(num_processes, worker, (queue, lst))
+
 	for e in range(epochs):
-		print(f'Epoch {e}')
+		# print(f'Epoch {e}')
+		print(f'Epoch {e} -', end=' ', flush=True)
+		batch_cost = 0
 		for batch in range(num_batches):
-			print(f' - Batch {batch} -', end=' ', flush=True)
+			# print(f' - Batch {batch} -', end=' ', flush=True)
+			print(f'{batch:02d}', end=' ', flush=True)
 			gradW = [np.zeros(w.shape) for w in n.weights]
 			gradB = [np.zeros(b.shape) for b in n.biases]
 			offset = batch*batch_size
 			cost = 0
 			for b in range(batch_size):
-				write_q.put((b, n, offset+b, images[offset+b], labels[offset+b]))
+				queue.put((b, n, offset+b, images[offset+b], labels[offset+b]))
 			try:
-				write_q.join()
+				queue.join()
 				for c, (w, b) in lst:
 					cost += c
 					for k in range(len(n.nodes)-1):
@@ -80,13 +85,14 @@ def main():
 						gradB[k] += b[k]
 			except KeyboardInterrupt:
 				return
-			print('-', cost/batch_size)
+			# print('-', cost/batch_size)
+			batch_cost += cost/batch_size
 			n.descend_batch(gradW, gradB, batch_size)
-		print('\n')
+		print('-', batch_cost/num_batches)
 		n.save()
 
 	for i in range(num_processes):
-		write_q.put(None)
+		queue.put(None)
 
 	pool.close()
 	pool.join()
