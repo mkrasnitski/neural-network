@@ -67,6 +67,8 @@ class Network:
 			return sig*np.matmul(WB, self.weights[A_layer-1])
 
 	def single_descent(self):
+		gradW = [np.zeros(w.shape) for w in self.weights]
+		gradB = [np.zeros(b.shape) for b in self.biases]
 		C = 2*(self.activations[-1] - self.y)
 		L = len(self.nodes) - 1
 		for n in range(L):
@@ -75,12 +77,13 @@ class Network:
 			for q in range(self.nodes[n+1]):
 				WG[q] = self.gradAWB(L, n, q, 'w')
 				BG[q] = self.gradAWB(L, n, q, 'b')
-			self.gradW[n] += np.dot(np.transpose(WG, (1, 0, 2)), C)
-			self.gradB[n] += np.dot(BG, C)
+			gradW[n] += np.dot(np.transpose(WG, (1, 0, 2)), C)
+			gradB[n] += np.dot(BG, C)
+		return gradW, gradB
 
-	def descend_batch(self, size):
+	def descend_batch(self, gradW, gradB, size):
 		L = len(self.nodes) - 1
 		for n in range(L):
-			self.weights[n] -= self.gradW[n]/size
-			self.biases[n] -= self.gradB[n]/size
+			self.weights[n] -= gradW[n]/size
+			self.biases[n] -= gradB[n]/size
 		self.clear()
