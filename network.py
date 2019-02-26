@@ -43,25 +43,27 @@ class Network:
 			cost += (a-y)**2
 		return cost
 
-	def gradAWB(self, A_layer, WB_layer, q, t):
-		if A_layer == WB_layer + 1:
-			if t == 'b':
-				g = np.zeros(self.nodes[A_layer])
-				g[q] = self.sigmoid_derivs[A_layer][q]
-				return g
-			else:
-				g = np.zeros((self.nodes[WB_layer], self.nodes[A_layer]))
-				g[:,q] = self.sigmoid_derivs[A_layer][q]*self.activations[WB_layer]
-				return g
-		elif A_layer == WB_layer + 2:
-			wb = self.sigmoid_derivs[A_layer-1][q]*self.weights[A_layer-1][q]*self.sigmoid_derivs[A_layer]
-			if t == 'b':
-				return wb
-			return np.outer(self.activations[WB_layer], wb)
+	@profile
+	def gradAW(self, A, W, q):
+		if A == W + 1:
+			g = np.zeros((self.nodes[W], self.nodes[A]))
+			g[:,q] = self.sigmoid_derivs[A][q]*self.activations[W]
+			return g
+		elif A == W + 2:
+			w = self.sigmoid_derivs[A-1][q]*self.sigmoid_derivs[A]*self.weights[A-1][q]
+			return np.outer(self.activations[W], w)
 		else:
-			WB = self.gradAWB(A_layer-1, WB_layer, q, t)
-			sig = self.sigmoid_derivs[A_layer]
-			return sig*np.matmul(WB, self.weights[A_layer-1])
+			WG = self.gradAW(A-1, W, q)
+			sig = self.sigmoid_derivs[A]
+			return sig*np.matmul(WG, self.weights[A-1])
+
+	def gradAB(self, A, B):
+		if A - B == 1:
+			return np.diag(self.sigmoid_derivs[A])
+		elif A - B == 2:
+			return self.sigmoid_derivs[A-1][:,None]*self.sigmoid_derivs[A]*self.weights[A-1]
+		else:
+			return self.sigmoid_derivs[A]*np.matmul(self.gradAB(A-1, B), self.weights[A-1])
 
 	def single_descent(self):
 		gradW = [np.empty(w.shape) for w in self.weights]
@@ -69,13 +71,11 @@ class Network:
 		C = 2*(self.activations[-1] - self.y)
 		L = len(self.nodes) - 1
 		for n in range(L):
-			WG = np.empty((self.nodes[n+1], self.nodes[n], self.nodes[-1]))
-			BG = np.empty((self.nodes[n+1], self.nodes[-1]))
+			W = np.empty((self.nodes[n+1], self.nodes[n], self.nodes[-1]))
 			for q in range(self.nodes[n+1]):
-				WG[q] = self.gradAWB(L, n, q, 'w')
-				BG[q] = self.gradAWB(L, n, q, 'b')
-			gradW[n] = np.dot(np.transpose(WG, (1, 0, 2)), C)
-			gradB[n] = np.dot(BG, C)
+				W[q] = self.gradAW(L, n, q)
+			gradW[n] = np.dot(np.swapaxes(W, 0, 1), C)
+			gradB[n] = np.dot(self.gradAB(L, n), C)
 		return gradW, gradB
 
 	def descend_batch(self, gradW, gradB, size):
