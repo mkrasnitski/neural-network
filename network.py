@@ -43,7 +43,6 @@ class Network:
 			cost += (a-y)**2
 		return cost
 
-	@profile
 	def gradAW(self, A, W, q):
 		if A == W + 1:
 			g = np.zeros((self.nodes[W], self.nodes[A]))
