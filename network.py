@@ -11,6 +11,11 @@ class Network:
 		self.activations = [np.empty((n,)) for n in self.nodes]
 		self.z = [np.empty((n,)) for n in self.nodes]
 		self.sigmoid_derivs = [np.empty((n,)) for n in self.nodes]
+		# self.clear()
+
+	def clear(self):
+		self.gradW = [np.zeros(w.shape) for w in self.weights]
+		self.gradB = [np.zeros(b.shape) for b in self.biases]
 
 	def save(self):
 		with open(self.path, 'wb') as f:
@@ -19,8 +24,11 @@ class Network:
 			pickle.dump(self.biases, f)
 
 	def print_last(self):
-		for a, y in zip(self.activations[-1], self.y):
-			print(f'{a:.7f}', y)
+		for i, (a, y) in enumerate(zip(self.activations[-1], self.y)):
+			print(f'{i} - {a:.7f} {y}')
+
+	def get_guess(self):
+		return self.activations[-1].argsort()[-3:][::-1]
 
 	def sigmoid(self, x, deriv):
 		if not deriv:
@@ -75,6 +83,9 @@ class Network:
 				W[q] = self.gradAW(L, n, q)
 			gradW[n] = np.dot(np.swapaxes(W, 0, 1), C)
 			gradB[n] = np.dot(self.gradAB(L, n), C)
+			# self.gradW[n] = np.dot(np.swapaxes(W, 0, 1), C)
+			# self.gradB[n] = np.dot(self.gradAB(L, n), C)
+			# print(np.all(self.gradW[1] - gradW[1] < 0.0001))
 		return gradW, gradB
 
 	def descend_batch(self, gradW, gradB, size):
@@ -82,3 +93,4 @@ class Network:
 		for n in range(L):
 			self.weights[n] -= gradW[n]/size
 			self.biases[n] -= gradB[n]/size
+		# self.clear()
